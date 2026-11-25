@@ -69,7 +69,7 @@ const registerUser = asyncHandler(async (req, res)=>{
     return res
     .status(201)
     .json(
-        new apiResponse(200, user, "User registered successfully")
+        new apiResponse(200, {}, "User registered successfully")
     )
 })
 
@@ -94,10 +94,6 @@ const loginUser = asyncHandler(async(req, res)=>{
 
     const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id)
 
-    const loggedInUser = await User.findById(user._id).select(
-        "-password -refreshToken"
-    )
-
     const option = {
         httpOnly: true,
         secure: true,
@@ -113,11 +109,7 @@ const loginUser = asyncHandler(async(req, res)=>{
     .json(
         new apiResponse(
             200,
-            {
-                user: loggedInUser,
-                accessToken,
-                refreshToken,
-            },
+            {},
             "User logged in Successfully"
         )
     )
@@ -125,7 +117,7 @@ const loginUser = asyncHandler(async(req, res)=>{
 })
 
 const logoutUser = asyncHandler(async(req, res)=>{
-    const loggedOutUser = await User.findByIdAndUpdate(
+    await User.findByIdAndUpdate(
         req.user._id,
         {
             $unset: {
@@ -135,7 +127,7 @@ const logoutUser = asyncHandler(async(req, res)=>{
         {
             new: true,
         }
-    ).select("-password")
+    )
 
     const option = {
         httpOnly: true,
@@ -147,7 +139,7 @@ const logoutUser = asyncHandler(async(req, res)=>{
     .clearCookie("accessToken", option)
     .clearCookie("refreshToken", option)
     .json(
-        new apiResponse(200, loggedOutUser, "User logged out successfully")
+        new apiResponse(200, {}, "User logged out successfully")
     )
 })
 
@@ -196,7 +188,7 @@ const updateAccountDetails = asyncHandler(async(req, res)=>{
         throw new apiError(400, "new email and username are required")
     }
 
-    const user = await User.findByIdAndUpdate(
+    await User.findByIdAndUpdate(
         req.user._id,
         {
             $set: {
@@ -205,12 +197,12 @@ const updateAccountDetails = asyncHandler(async(req, res)=>{
             }
         },
         {new: true}
-    ).select("-password -refreshToken")
+    )
 
     return res
     .status(200)
     .json(
-        new apiResponse(200, user, "User Account details updated successfully")
+        new apiResponse(200, {}, "User Account details updated successfully")
     )
 })
 
@@ -223,7 +215,7 @@ const checkAccessTokenExpiry = asyncHandler(async(req, res)=>{
             
             const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET)
         
-            const result = await User.findById(decoded?._id)
+            const result = await User.findById(decoded?._id).select("-password -passwordLength -refreshToken")
             user_data1 = result;
 
         } catch (error) {
@@ -234,7 +226,7 @@ const checkAccessTokenExpiry = asyncHandler(async(req, res)=>{
     
         const decoded = jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET)
 
-        const result = await User.findById(decoded?._id)
+        const result = await User.findById(decoded?._id).select("-password -passwordLength -refreshToken")
         user_data2 = result;
 
         if(!accessToken){
@@ -299,7 +291,7 @@ const refreshAccessToken = asyncHandler(async(req, res)=>{
      .cookie("accessToken", accessToken, {...option, maxAge: accessTokenMaxAge})
      .cookie("refreshToken", refreshToken, {...option, expires: refreshTokenExpiry})
      .json(
-         new apiResponse(200, {accessToken, refreshToken}, "Access Token Refreshed successfully")
+         new apiResponse(200, {}, "Access Token Refreshed successfully")
      )
    } catch (error) {
         throw new apiError(401, error?.message || "Invalid refresh token")
